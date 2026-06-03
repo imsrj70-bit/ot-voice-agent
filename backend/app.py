@@ -6,6 +6,8 @@ from typing import List, Optional
 import requests
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -26,6 +28,15 @@ REQUEST_TIMEOUT  = int(os.getenv("MIINEX_REQUEST_TIMEOUT", "30"))
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Ordertron Voice Agent API")
+
+# Serve the frontend UI at /
+_FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+
+@app.get("/", include_in_schema=False)
+def serve_ui():
+    return FileResponse(os.path.join(_FRONTEND_DIR, "index.html"))
+
+app.mount("/static", StaticFiles(directory=_FRONTEND_DIR), name="static")
 
 
 # ---------------------------------------------------------------------------

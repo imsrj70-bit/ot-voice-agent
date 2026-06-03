@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ordertron — Voice Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d0d0d;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      width: 360px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    }
+
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6e40c9 0%, #3b8fd4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 0 6px rgba(110, 64, 201, 0.15);
+    }
+
+    h1 { font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #666; margin-bottom: 36px; }
+
+    /* Call button */
+    #callBtn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      background: #22c55e;
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.35);
+      color: #fff;
+    }
+    #callBtn:hover { transform: scale(1.07); box-shadow: 0 6px 28px rgba(34, 197, 94, 0.5); }
+    #callBtn:active { transform: scale(0.97); }
+
+    #callBtn.active {
+      background: #ef4444;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+    }
+    #callBtn.active:hover { box-shadow: 0 6px 28px rgba(239, 68, 68, 0.55); }
+
+    #callBtn.connecting {
+      background: #f59e0b;
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.06); }
+    }
+
+    #statusText {
+      font-size: 13px;
+      color: #888;
+      min-height: 18px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Volume bars */
+    #volumeBar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 4px;
+      height: 28px;
+      margin: 16px auto 0;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #volumeBar.visible { opacity: 1; }
+    .bar {
+      width: 5px;
+      border-radius: 3px;
+      background: #6e40c9;
+      transition: height 0.08s ease;
+      min-height: 3px;
+    }
+
+    /* Error toast */
+    #errorMsg {
+      font-size: 12px;
+      color: #f87171;
+      margin-top: 10px;
+      min-height: 16px;
+    }
+
+    /* Transcript panel */
+    #transcriptCard {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 20px;
+      width: 480px;
+      max-height: 420px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    #transcriptHeader {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #333;
+      transition: background 0.3s;
+    }
+    .dot.live { background: #22c55e; animation: blink 1.2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    #transcriptBody {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+    #transcriptBody::-webkit-scrollbar { width: 4px; }
+    #transcriptBody::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    #transcriptEmpty {
+      color: #444;
+      font-size: 13px;
+      text-align: center;
+      margin: auto;
+      padding: 32px 0;
+    }
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-width: 88%;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+    .msg.assistant { align-self: flex-start; }
+    .msg.user      { align-self: flex-end; }
+    .msg-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #555;
+      padding: 0 4px;
+    }
+    .msg.user .msg-label { text-align: right; }
+    .msg-bubble {
+      padding: 9px 13px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.45;
+    }
+    .msg.assistant .msg-bubble {
+      background: #252525;
+      color: #e0e0e0;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.user .msg-bubble {
+      background: #6e40c9;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg-bubble.partial { opacity: 0.55; font-style: italic; }
+
+    footer {
+      font-size: 11px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="avatar">🤖</div>
+    <h1>Riley</h1>
+    <p class="subtitle">Ordertron Voice Agent</p>
+
+    <button id="callBtn" title="Start call">
+      <!-- phone icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07
+                 A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.6 3.43
+                 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7
+                 2.81a2 2 0 0 1-.45 2.11L7.91 8.82a16 16 0 0 0 6.29 6.29l.88-.88
+                 a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+      </svg>
+    </button>
+
+    <p id="statusText">Tap to start a call</p>
+
+    <div id="volumeBar">
+      <div class="bar" id="b1" style="height:6px"></div>
+      <div class="bar" id="b2" style="height:12px"></div>
+      <div class="bar" id="b3" style="height:20px"></div>
+      <div class="bar" id="b4" style="height:14px"></div>
+      <div class="bar" id="b5" style="height:8px"></div>
+      <div class="bar" id="b6" style="height:18px"></div>
+      <div class="bar" id="b7" style="height:10px"></div>
+    </div>
+
+    <p id="errorMsg"></p>
+  </div>
+
+  <div id="transcriptCard">
+    <div id="transcriptHeader">
+      <span class="dot" id="liveDot"></span>
+      Transcript
+    </div>
+    <div id="transcriptBody">
+      <p id="transcriptEmpty">Transcript will appear here during the call.</p>
+    </div>
+  </div>
+
+  <footer>Powered by Vapi &nbsp;·&nbsp; for internal testing only</footer>
+
+  <!-- Vapi Web SDK (ES module — avoids "exports is not defined" in plain browser) -->
+  <script type="module">
+    import _VapiModule from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm";
+    const Vapi = _VapiModule.default ?? _VapiModule;
+
+    // ── CONFIG ────────────────────────────────────────────────────────────────
+    const VAPI_PUBLIC_KEY  = "6434064f-a019-4986-9e62-8b384f282bbf";
+    const ASSISTANT_ID     = "3bba9f4c-82be-4133-99de-c7460d29de70";
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const btn        = document.getElementById("callBtn");
+    const statusText = document.getElementById("statusText");
+    const errorMsg   = document.getElementById("errorMsg");
+    const volumeBar  = document.getElementById("volumeBar");
+    const bars       = Array.from(document.querySelectorAll(".bar"));
+    const txBody     = document.getElementById("transcriptBody");
+    const txEmpty    = document.getElementById("transcriptEmpty");
+    const liveDot    = document.getElementById("liveDot");
+
+    const partials = {}; // role -> current partial bubble element
+
+    function addMessage(role, text, isPartial) {
+      if (txEmpty) txEmpty.style.display = "none";
+      if (isPartial) {
+        if (!partials[role]) {
+          const wrap = document.createElement("div");
+          wrap.className = `msg ${role}`;
+          wrap.innerHTML = `<span class="msg-label">${role === "assistant" ? "Riley" : "You"}</span><div class="msg-bubble partial"></div>`;
+          txBody.appendChild(wrap);
+          partials[role] = wrap.querySelector(".msg-bubble");
+        }
+        partials[role].textContent = text;
+      } else {
+        if (partials[role]) {
+          partials[role].textContent = text;
+          partials[role].classList.remove("partial");
+          delete partials[role];
+        } else {
+          const wrap = document.createElement("div");
+          wrap.className = `msg ${role}`;
+          wrap.innerHTML = `<span class="msg-label">${role === "assistant" ? "Riley" : "You"}</span><div class="msg-bubble"></div>`;
+          wrap.querySelector(".msg-bubble").textContent = text;
+          txBody.appendChild(wrap);
+        }
+      }
+      txBody.scrollTop = txBody.scrollHeight;
+    }
+
+    // Single shared Vapi instance — created once, reused across calls.
+    // Re-creating it on every call causes "multiple instances" errors.
+    const vapi = new Vapi(VAPI_PUBLIC_KEY);
+
+    let callActive = false;
+    let volumeInterval = null;
+
+    function setStatus(text, type = "idle") {
+      statusText.textContent = text;
+      errorMsg.textContent = "";
+      btn.className = type === "active" ? "active" : type === "connecting" ? "connecting" : "";
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      setStatus("Tap to try again");
+    }
+
+    function animateBars(level = 0) {
+      bars.forEach(bar => {
+        const rand = Math.random();
+        const h = level > 0 ? Math.max(3, Math.round(rand * level * 28)) : 3;
+        bar.style.height = h + "px";
+      });
+    }
+
+    function startVolumeAnim() {
+      volumeBar.classList.add("visible");
+      volumeInterval = setInterval(() => animateBars(0.4), 120);
+    }
+
+    function stopVolumeAnim() {
+      clearInterval(volumeInterval);
+      volumeInterval = null;
+      animateBars(0);
+      volumeBar.classList.remove("visible");
+    }
+
+    vapi.on("call-start", () => {
+      callActive = true;
+      setStatus("Call active — tap to end", "active");
+      startVolumeAnim();
+      liveDot.classList.add("live");
+    });
+
+    vapi.on("call-end", () => {
+      callActive = false;
+      stopVolumeAnim();
+      setStatus("Tap to start a call");
+      btn.className = "";
+      liveDot.classList.remove("live");
+    });
+
+    vapi.on("message", (msg) => {
+      // Shape 1 — direct transcript: { type:"transcript", role, transcript, transcriptType }
+      if (msg?.type === "transcript") {
+        const role    = msg.role;
+        const text    = msg.transcript ?? "";
+        const isFinal = msg.transcriptType === "final";
+        if (text.trim()) addMessage(role, text, !isFinal);
+      }
+    });
+
+    vapi.on("volume-level", (vol) => {
+      bars.forEach(bar => {
+        const h = Math.max(3, Math.round(Math.random() * vol * 28));
+        bar.style.height = h + "px";
+      });
+    });
+
+    vapi.on("error", (err) => {
+      console.error("Vapi error:", err);
+      // Ignore non-fatal Krisp/worklet warnings (mic still works without noise filter)
+      if (err?.error?.type === "daily-call-object-creation-error" ||
+          err?.type === "daily-error") return;
+      showError("Something went wrong — check console.");
+      stopVolumeAnim();
+      callActive = false;
+      btn.className = "";
+    });
+
+    async function startCall() {
+      errorMsg.textContent = "";
+      setStatus("Connecting…", "connecting");
+      try {
+        await vapi.start(ASSISTANT_ID);
+      } catch (err) {
+        console.error(err);
+        showError("Could not start call. Check your keys.");
+        btn.className = "";
+      }
+    }
+
+    async function endCall() {
+      await vapi.stop();
+    }
+
+    btn.addEventListener("click", () => {
+      if (callActive) {
+        endCall();
+      } else {
+        startCall();
+      }
+    });
+  </script>
+</body>
+</html>
