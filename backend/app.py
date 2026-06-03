@@ -6,7 +6,7 @@ from typing import List, Optional
 import requests
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import func, or_
@@ -24,6 +24,9 @@ MIINEX_BASE_URL  = os.getenv("MIINEX_BASE_URL", "https://app.miinex.com/otapis/c
 MIINEX_API_TOKEN = os.getenv("MIINEX_API_TOKEN", "")
 REQUEST_TIMEOUT  = int(os.getenv("MIINEX_REQUEST_TIMEOUT", "30"))
 
+VAPI_PUBLIC_KEY = os.getenv("VAPI_PUBLIC_KEY", "")
+VAPI_ASSISTANT_ID = os.getenv("VAPI_ASSISTANT_ID", "")
+
 # Create tables on startup
 Base.metadata.create_all(bind=engine)
 
@@ -34,7 +37,10 @@ _FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronte
 
 @app.get("/", include_in_schema=False)
 def serve_ui():
-    return FileResponse(os.path.join(_FRONTEND_DIR, "index.html"))
+    html = open(os.path.join(_FRONTEND_DIR, "index.html"), encoding="utf-8").read()
+    html = html.replace("__VAPI_PUBLIC_KEY__", VAPI_PUBLIC_KEY)
+    html = html.replace("__VAPI_ASSISTANT_ID__", VAPI_ASSISTANT_ID)
+    return HTMLResponse(html)
 
 app.mount("/static", StaticFiles(directory=_FRONTEND_DIR), name="static")
 
