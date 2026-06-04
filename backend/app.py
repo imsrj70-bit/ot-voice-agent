@@ -86,6 +86,7 @@ class ProductSchema(BaseModel):
     base_unit: str
     min_order_qut: str
     max_order_qut: str
+    allow_decimal_qty: int
     category: str
 
 
@@ -158,6 +159,7 @@ def _to_product_schema(p: Product) -> ProductSchema:
         base_unit=p.base_unit or "",
         min_order_qut=p.min_order_qut or "1",
         max_order_qut=p.max_order_qut or "",
+        allow_decimal_qty=p.allow_decimal_qty if p.allow_decimal_qty is not None else 1,
         category=p.category or "",
     )
 

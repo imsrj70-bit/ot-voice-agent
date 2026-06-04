@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, SmallInteger
 from backend.database import Base
 
 
@@ -34,9 +34,10 @@ class Product(Base):
     cat_id        = Column(String(50), default="")
     base_unit_id  = Column(Integer, default=0)
     order_unit_id = Column(String(50), default="")
-    min_order_qut = Column(String(50), default="1")
-    max_order_qut = Column(String(50), default="")
-    base_unit     = Column(String(100), default="")
-    order_unit    = Column(String(100), default="")
-    category      = Column(String(200), default="")
-    synced_at     = Column(DateTime, default=datetime.datetime.utcnow)
+    min_order_qut      = Column(String(50), default="1")
+    max_order_qut      = Column(String(50), default="")
+    allow_decimal_qty  = Column(SmallInteger, default=1)
+    base_unit          = Column(String(100), default="")
+    order_unit         = Column(String(100), default="")
+    category           = Column(String(200), default="")
+    synced_at          = Column(DateTime, default=datetime.datetime.utcnow)
